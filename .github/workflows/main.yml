@@ -11,13 +11,12 @@ on:
       - 'README.md'
 
 env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
 
   windows:
     name: Build for Windows
-
     runs-on: windows-latest
 
     steps:
@@ -43,17 +42,19 @@ jobs:
   linux:
     name: Build for Linux
     needs: windows
-
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.5.1'    
-      - run: npm install -g electron-builder
-      - run: npm install
+      - run: npm install -g electron-builder --openssl_fips=''
+      - run: npm install --openssl_fips=''
       - run: npm run lbuild
       - uses: actions/upload-artifact@v4.4.3
         with:
@@ -66,18 +67,20 @@ jobs:
   osx:
     name: Build for MacOS
     needs: windows
-
     runs-on: macos-13
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.5.1'    
       - run: export OPENSSL_DIR=/usr/local/opt/openssl@3
-      - run: npm install -g electron-builder
-      - run: npm install
+      - run: npm install -g electron-builder --openssl_fips=''
+      - run: npm install --openssl_fips=''
       - run: npm run lbuild
       - uses: actions/upload-artifact@v4.4.3
         with:
@@ -87,7 +90,6 @@ jobs:
   notify:
     name: Notify
     needs: [osx, linux]
-
     runs-on: ubuntu-latest
     
     steps:
@@ -97,10 +99,21 @@ jobs:
           to: ${{ secrets.TELEGRAM_TO }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: |
-            ${{ github.actor }} added a new commit!
-            ${{ github.event.commits[0].message }}
+            ⚠️ Saturn PC was updated!
+            Check out the Changelog to see what's new
             
-            Download: https://nightly.link/SaturnMusic/PC/workflows/main/main?preview
-            Changelog: https://github.com/${{ github.repository }}/commit/${{github.sha}}
+            🔗 Download: https://nightly.link/Sheathed/Saturn-PC/workflows/main/main?preview
+            📋 Changelog: https://github.com/${{ github.repository }}/commit/${{github.sha}}
 
-            Please star the repository <3
+            ⭐ Please star the repository <3
+            Feel free to follow me on GitHub:
+            💖 https://github.com/Sheathed
+
+            Leave an issue if you find a bug or have a feature request:
+            ✨ https://github.com/Sheathed/Saturn-PC/issues
+
+            Join the Discord server for support and discussion:
+            👋 https://discord.com/invite/fttYFSHPCQ
+
+            ... or join the Telegram group:
+            💬 @SaturnDiscuss

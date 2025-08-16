@@ -11,6 +11,7 @@ const { Settings } = require('./settings');
 const { Track, Album, Artist, Playlist, DeezerProfile, SearchResults, DeezerLibrary, DeezerPage, Lyrics } = require('./definitions');
 const { DownloadManager } = require('./downloads');
 const { Integrations } = require('./integrations');
+const { DeezerLogin, DeezerLoginException, CookieManager, md5Hex, Env } = require('./deezer_login');
 
 let settings;
 let deezer;
@@ -91,6 +92,32 @@ app.post('/authorize', async(req, res) => {
     }
 
     res.status(500).send('Invalid ARL / Free Account');
+});
+
+app.post('/directlogin', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).send('Invalid Credentials');
+
+  let arl;
+  try {
+    arl = await DeezerLogin.getArlByEmailAndPassword(email, password);
+
+    if (!arl || arl === '') {
+      logger.error('Direct login produced no ARL for email', { email });
+      return res.status(401).send('Invalid ARL / Login failed');
+    }
+
+    return res.status(200).send({ arl });
+  } catch (err) {
+    // If DeezerLoginException == friendly; otherwise treat as unexpected
+    if (err instanceof DeezerLoginException) {
+      logger.error('Login failed (DeezerLoginException)', { err: err.toString(), email });
+      return res.status(401).send(err.toString());
+    } else {
+      logger.error('Direct login unexpected error', { err: (err && err.toString) ? err.toString() : err, email });
+      return res.status(500).send('Internal Server Error');
+    }
+  }
 });
 
 //Get track by id
@@ -436,8 +463,14 @@ app.get('/trackmix/:id', async(req, res) => {
 });
 
 // Load lyrics by song ID
-app.get('/lyrics/:id', async(req, res) => {
+app.get('/lyrics/:id/:p', async(req, res) => {
+    var provider;
+    if (req.params.p == "Deezer") provider = "Deezer"
+    if (req.params.p == "LRCLib") provider = "lrclib"
+    if (req.params.p == "MusixMatch") provider = "mxm"
+    if (req.params.p == "Genius") provider = "genius"
     try {
+        if (provider == "Deezer") {
         // Create the GraphQL query string
         const queryStringGraphQL = `
             query SynchronizedTrackLyrics($trackId: String!) {
@@ -486,7 +519,20 @@ app.get('/lyrics/:id', async(req, res) => {
 
         // No lyrics found in either API
         res.status(502).send('Lyrics not found!');
+
+    } else { // provider is not deezer
+
+        try {
+            var trackData = await deezer.callApi('song.getData', { sng_id: req.params.id });
+            var a = await deezer.s();
+            var b = await deezer.l(provider, `${trackData.results.SNG_TITLE} ${trackData.results.ART_NAME}`, 1, a)
+            var c = await deezer.con(b)
+            return res.json(c);
+        } catch (error) {logger.error(error); console.error(error);}
+
+    }
     } catch (error) {
+        logger.error(error);
         console.error(error);
         res.status(500).send('Internal Server Error');
     }
@@ -600,7 +646,7 @@ app.get('/about', async(req, res) => {
 
 app.get('/updates', async(req, res) => {
     try {
-        const url = `https://raw.githubusercontent.com/SaturnMusic/PC/refs/heads/main/package.json`;
+        const url = `https://raw.githubusercontent.com/Sheathed/Saturn-PC/refs/heads/main/package.json`;
         let response = await axios.get(url);
         //New version
         if (compareVersions(response.data.version, packageJson.version) >= 1) {

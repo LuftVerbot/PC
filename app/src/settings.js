@@ -7,8 +7,8 @@ class Settings {
     constructor(electron = false) {
         //Defaults
         this.port = 10069;
-        this.serverIp = '127.0.0.1';
-        this.arl;
+        this.serverIp = '0.0.0.0';
+        this.arl = process.env.ARL || '';
         this.streamQuality = 3;
         this.volume = 0.69;
         this.electron = electron;
@@ -55,6 +55,7 @@ class Settings {
 
         this.logListen = false;
         this.lastFM = null;
+        this.lrcprovider = "Deezer";
         this.enableDiscord = false;
         this.discordJoin = false;
 
