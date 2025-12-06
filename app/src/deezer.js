@@ -237,7 +237,7 @@ class DeezerAPI {
         this.userId = data.results.USER.USER_ID;
         this.favoritesPlaylist = data.results.USER.LOVEDTRACKS_ID.toString();
 
-        if (!this.userId || this.userId == 0 || !this.token || this.plan == "Deezer Free") return false;
+        if (!this.userId || this.userId == 0 || !this.token) return false;
         return true;
     }
 
@@ -343,14 +343,63 @@ class DeezerAPI {
             l = global.token; // deezer api provides the token expiry but like why use it lol
         } else {
             var userdata = await this.callApi('deezer.getUserData');
-            var l = userdata.results.USER.OPTIONS.license_token
+            l = userdata.results.USER.OPTIONS.license_token
         }
 
         // TODO:
         // I am actually not entirely sure how to account for track token expiry
         // so I guess I'll look into it a bit more later on
 
-        if (quality != 1) {
+        if (!trackId.startsWith('-') || quality !== 1) {
+            try {
+                let qty;
+
+                //9 - FLAC
+                //3 - MP3 320
+                //1 - MP3 128
+
+
+                if (quality === 3) {
+                    qty = "MP3_320"
+                } else if (quality === 1) {
+                    qty = "MP3_128"
+                } else if (quality === 9) {
+                    qty = "FLAC"
+                }
+
+                let json = {
+                    'formats': [qty],
+                    'ids': [parseInt(trackId)]
+                }
+
+                try {
+
+                    var res = await axios({
+                        method: 'POST',
+                        url: `https://lufts-dzmedia.fly.dev/get_url`,
+                        data: json,
+                        responseType: 'json'
+                    });
+
+                } catch (err) { "failed on request: " + err }
+
+                if (qty !== 'FLAC') {
+                    global.lasturl = res.data.data[0].media[0].sources[0].url
+                    return {
+                        encrypted: true,
+                        url: res.data.data[0].media[0].sources[0].url
+                    };
+                } else {
+                    global.lasturl = res.data.data[0].media[0].sources[0].url
+                    return {
+                        encrypted: true,
+                        url: res.data.data[0].media[0].sources[0].url
+                    };
+                }
+            } catch (e) {
+                logger.warn('failed: ' + e);
+            }
+        } else {
 
             var trackData = await this.callApi('song.getData', { sng_id: trackId });
 
@@ -358,37 +407,26 @@ class DeezerAPI {
 
             try {
                 if (t.toString() != null && l.toString() != null) {
+                    let qty;
 
-                    var qty;
-
-                    //9 - FLAC
-                    //3 - MP3 320
-                    //1 - MP3 128
-
-                    if (trackId.startsWith('-')) {
-                        qty = "MP3_MISC"
+                    if(quality !== 1) {
+                       qty = 'MP3_MISC'
                     } else {
-                        if (quality == 3) {
-                            qty = "MP3_320"
-                        } else if (quality == 1) {
-                            qty = "MP3_128"
-                        } else if (quality == 9) {
-                            qty = "FLAC"
-                        }
+                        qty = 'MP3_128'
                     }
 
                     let json = {
                         'license_token': l,
                         'media': [{
                             'type': 'FULL',
-                            'formats': [{ 'cipher': 'BF_CBC_STRIPE', 'format': qty }]
+                            'formats': [{'cipher': 'BF_CBC_STRIPE', 'format': qty}]
                         }],
                         'track_tokens': [t]
                     }
 
                     try {
 
-                        var res = await axios({
+                        var mp3Res = await axios({
                             method: 'POST',
                             headers: this.headers(),
                             url: `https://media.deezer.com/v1/get_url`,
@@ -398,31 +436,24 @@ class DeezerAPI {
 
                     } catch (err) { "failed on request: " + err }
 
-                    if (qty != 'FLAC') {
-                        global.lasturl = res.data.data[0].media[0].sources[1].url
-                        return {
-                            encrypted: true,
-                            url: res.data.data[0].media[0].sources[1].url
-                        };
-                    } else {
-                        global.lasturl = res.data.data[0].media[0].sources[1].url
-                        return {
-                            encrypted: true,
-                            url: res.data.data[0].media[0].sources[1].url
-                        };
-                    }
+
+                    global.lasturl = mp3Res.data.data[0].media[0].sources[1].url
+                    return {
+                        encrypted: true,
+                        url: mp3Res.data.data[0].media[0].sources[1].url
+                    };
 
 
                 } else { logger.warn("track token or license token are null") }
             } catch (e) {
                 logger.warn('failed: ' + e);
             }
-        } else {
-            return {
-                encrypted: true,
-                url: DeezerAPI.getUrl(trackId, md5origin, mediaVersion, quality)
-            };
-        }
+        } //else {
+            //return {
+                //encrypted: true,
+                //url: DeezerAPI.getUrl(trackId, md5origin, mediaVersion, quality)
+            //};
+        //}
     }
 
     async s() {
@@ -519,10 +550,10 @@ class DeezerAPI {
         let qualityInfo = Track.getUrlInfo(info);
 
         //User uploaded MP3s
-        // if (qualityInfo.trackId.startsWith('-')) {
-        //     qualityInfo.quality = 3;
-        //     return qualityInfo;
-        // }
+        //if (qualityInfo.trackId.startsWith('-')) {
+        //    qualityInfo.quality = 3;
+        //    return qualityInfo;
+        //}
 
         //Quality fallback
         let newQuality = await this.qualityFallback(qualityInfo, quality);
