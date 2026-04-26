@@ -350,20 +350,21 @@ class DeezerAPI {
         // I am actually not entirely sure how to account for track token expiry
         // so I guess I'll look into it a bit more later on
 
-        if (!trackId.startsWith('-') || quality !== 1) {
+        var qty;
+
+        if (!trackId.startsWith('-')) {
             try {
-                let qty;
 
                 //9 - FLAC
                 //3 - MP3 320
                 //1 - MP3 128
 
 
-                if (quality === 3) {
+                if (quality == 3) {
                     qty = "MP3_320"
-                } else if (quality === 1) {
+                } else if (quality == 1) {
                     qty = "MP3_128"
-                } else if (quality === 9) {
+                } else if (quality == 9) {
                     qty = "FLAC"
                 }
 
@@ -383,7 +384,7 @@ class DeezerAPI {
 
                 } catch (err) { "failed on request: " + err }
 
-                if (qty !== 'FLAC') {
+                if (qty != 'FLAC') {
                     global.lasturl = res.data.data[0].media[0].sources[0].url
                     return {
                         encrypted: true,
@@ -407,19 +408,12 @@ class DeezerAPI {
 
             try {
                 if (t.toString() != null && l.toString() != null) {
-                    let qty;
-
-                    if(quality !== 1) {
-                       qty = 'MP3_MISC'
-                    } else {
-                        qty = 'MP3_128'
-                    }
 
                     let json = {
                         'license_token': l,
                         'media': [{
                             'type': 'FULL',
-                            'formats': [{'cipher': 'BF_CBC_STRIPE', 'format': qty}]
+                            'formats': [{ 'cipher': 'BF_CBC_STRIPE', 'format': 'MP3_MISC'}]
                         }],
                         'track_tokens': [t]
                     }
