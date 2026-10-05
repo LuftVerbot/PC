@@ -26,6 +26,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22.5.1'
+      
       - run: npm version patch --git-tag-version false && cd app && npm version patch --git-tag-version false && cd client && npm version patch --git-tag-version false && cd ..\..
       
       - name: Install dependencies
