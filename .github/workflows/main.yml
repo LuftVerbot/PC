@@ -26,15 +26,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22.5.1'
+          cache: 'npm'
       - run: npm version patch --git-tag-version false && cd app && npm version patch --git-tag-version false && cd client && npm version patch --git-tag-version false && cd ..\..
+      - run: npm install -g electron-builder
+      - run: npm install
+      - run: npm run build
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: Automated Version Bump  
           push_options: '--force'
           skip_dirty_check: true    
-      - run: npm install -g electron-builder
-      - run: npm install
-      - run: npm run build
       - uses: actions/upload-artifact@v4.4.3
         with:
           name: Windows Executables
